@@ -1,5 +1,23 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Supabase: библиотека и импорт
+
+1. Создай проект в [Supabase](https://supabase.com/dashboard) и открой **Project Settings → API**.
+2. В `.env.local` укажи значения проекта:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<publishable-key>
+```
+
+3. Открой **SQL Editor** и последовательно выполни миграции:
+	- [20260730_create_profiles.sql](supabase/migrations/20260730_create_profiles.sql)
+	- [20260730_create_books.sql](supabase/migrations/20260730_create_books.sql)
+4. Перезапусти приложение командой `npm run dev`, зарегистрируй или войди как `khodunalinaaa@gmail.com`.
+5. На главной странице появится кнопка **Импортировать книги**. Она один раз прочитает [library.txt](library.txt) и добавит книги только в библиотеку этого аккаунта.
+
+Отмеченные `✓` книги импортируются со статусом «Прочитано», а `◦` — «Не читано». У импортированных прочитанных книг могут отсутствовать оценка и отзыв: открой книгу, нажми «Редактировать книгу», добавь или исправь эти поля и сохрани. Повторное нажатие импорта не создаст дубликаты.
+
 ## Getting Started
 
 First, run the development server:
