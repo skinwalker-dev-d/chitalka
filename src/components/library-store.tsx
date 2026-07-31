@@ -76,7 +76,16 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
         if (!isActive) return;
         const storedBooks = (data as StoredBook[]).map(fromStoredBook);
         setBooks(storedBooks);
-        setCollections(collectNames(storedBooks));
+        const { data: collectionsData } = await supabase.from("collections").select("id, name").order("name");
+        if (!isActive) return;
+        if (collectionsData && collectionsData.length > 0) {
+          setCollections(collectionsData as LibraryCollection[]);
+        } else {
+          // Seed collections from existing books on first migration
+          const seeded = collectNames(storedBooks);
+          setCollections(seeded);
+          if (seeded.length > 0) void supabase.from("collections").insert(seeded.map((c) => ({ id: c.id, name: c.name })));
+        }
         const { data: goalsData } = await supabase.from("goals").select("id, title, book_ids").order("created_at", { ascending: false });
         if (isActive) setGoals((goalsData ?? []).map(fromStoredGoal));
       } catch {
@@ -112,6 +121,7 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
     if (!trimmedName || collections.some((collection) => collection.name.localeCompare(trimmedName, "ru", { sensitivity: "accent" }) === 0)) return null;
     const collection = { id: crypto.randomUUID(), name: trimmedName };
     setCollections((current) => [...current, collection]);
+    void createSupabaseBrowserClient().from("collections").insert({ id: collection.id, name: trimmedName });
     const updatedBooks = books.map((book) => bookIds.includes(book.id) && !book.collections.includes(trimmedName) ? { ...book, collections: [...book.collections, trimmedName] } : book);
     setBooks(updatedBooks);
     updatedBooks.filter((book) => bookIds.includes(book.id)).forEach((book) => { void createSupabaseBrowserClient().from("books").update(toStoredBook(book)).eq("id", book.id); });
@@ -128,6 +138,7 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
     });
     setCollections((current) => current.map((currentCollection) => currentCollection.id === collectionId ? updatedCollection : currentCollection));
     setBooks(updatedBooks);
+    void createSupabaseBrowserClient().from("collections").update({ name: trimmedName }).eq("id", collectionId);
     updatedBooks.filter((book, index) => book.collections.join("\u0000") !== books[index].collections.join("\u0000")).forEach((book) => { void createSupabaseBrowserClient().from("books").update(toStoredBook(book)).eq("id", book.id); });
     return updatedCollection;
   }
@@ -137,6 +148,7 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
     const updatedBooks = books.map((book) => ({ ...book, collections: book.collections.filter((current) => current !== collection.name) }));
     setCollections((current) => current.filter((currentCollection) => currentCollection.id !== collectionId));
     setBooks(updatedBooks);
+    void createSupabaseBrowserClient().from("collections").delete().eq("id", collection.id);
     updatedBooks.filter((book, index) => book.collections.length !== books[index].collections.length).forEach((book) => { void createSupabaseBrowserClient().from("books").update(toStoredBook(book)).eq("id", book.id); });
   }
   function advanceStatus(bookId: number) {
