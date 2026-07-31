@@ -128,10 +128,11 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
     const uuid = typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
     const collection = { id: uuid, name: trimmedName };
     setCollections((current) => [...current, collection]);
-    void createSupabaseBrowserClient().from("collections").insert({ id: collection.id, name: trimmedName }).then(({ error }) => { if (error) console.error("[collections] insert failed:", error); });
+    const sb = createSupabaseBrowserClient();
+    void sb.from("collections").insert({ id: collection.id, name: trimmedName }).then(({ error }) => { if (error) console.error("[collections] insert failed:", error); });
     const updatedBooks = books.map((book) => bookIds.includes(book.id) && !book.collections.includes(trimmedName) ? { ...book, collections: [...book.collections, trimmedName] } : book);
     setBooks(updatedBooks);
-    updatedBooks.filter((book) => bookIds.includes(book.id)).forEach((book) => { void createSupabaseBrowserClient().from("books").update(toStoredBook(book)).eq("id", book.id); });
+    updatedBooks.filter((book) => bookIds.includes(book.id)).forEach((book) => { void sb.from("books").update(toStoredBook(book)).eq("id", book.id).then(({ error }) => { if (error) console.error(`[createCollection] book ${book.id} update failed:`, error); }); });
     return collection;
   }
   function updateCollection(collectionId: string, name: string, bookIds: number[]) {
@@ -145,8 +146,9 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
     });
     setCollections((current) => current.map((currentCollection) => currentCollection.id === collectionId ? updatedCollection : currentCollection));
     setBooks(updatedBooks);
-    void createSupabaseBrowserClient().from("collections").update({ name: trimmedName }).eq("id", collectionId);
-    updatedBooks.filter((book, index) => book.collections.join("\u0000") !== books[index].collections.join("\u0000")).forEach((book) => { void createSupabaseBrowserClient().from("books").update(toStoredBook(book)).eq("id", book.id); });
+    const sb = createSupabaseBrowserClient();
+    void sb.from("collections").update({ name: trimmedName }).eq("id", collectionId).then(({ error }) => { if (error) console.error("[updateCollection] rename failed:", error); });
+    updatedBooks.filter((book, index) => book.collections.join("\u0000") !== books[index].collections.join("\u0000")).forEach((book) => { void sb.from("books").update(toStoredBook(book)).eq("id", book.id).then(({ error }) => { if (error) console.error(`[updateCollection] book ${book.id} update failed:`, error); }); });
     return updatedCollection;
   }
   function deleteCollection(collectionId: string) {
@@ -155,8 +157,9 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
     const updatedBooks = books.map((book) => ({ ...book, collections: book.collections.filter((current) => current !== collection.name) }));
     setCollections((current) => current.filter((currentCollection) => currentCollection.id !== collectionId));
     setBooks(updatedBooks);
-    void createSupabaseBrowserClient().from("collections").delete().eq("id", collection.id);
-    updatedBooks.filter((book, index) => book.collections.length !== books[index].collections.length).forEach((book) => { void createSupabaseBrowserClient().from("books").update(toStoredBook(book)).eq("id", book.id); });
+    const sb = createSupabaseBrowserClient();
+    void sb.from("collections").delete().eq("id", collection.id).then(({ error }) => { if (error) console.error("[deleteCollection] failed:", error); });
+    updatedBooks.filter((book, index) => book.collections.length !== books[index].collections.length).forEach((book) => { void sb.from("books").update(toStoredBook(book)).eq("id", book.id).then(({ error }) => { if (error) console.error(`[deleteCollection] book ${book.id} update failed:`, error); }); });
   }
   function advanceStatus(bookId: number) {
     const next: Record<BookStatus, BookStatus> = { "Не читано": "Читаю", Читаю: "Прочитано", Прочитано: "Не читано", "Хочу купить": "Не читано" };
