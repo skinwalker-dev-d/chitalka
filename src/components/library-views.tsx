@@ -161,6 +161,16 @@ export function LibraryView({ greetingTemplate }: { greetingTemplate: string }) 
   const visibleBooks = books
     .filter((book) => (filter === "Все" || book.status === filter) && (!deferredQuery || `${book.title} ${book.author} ${book.genre}`.toLowerCase().includes(deferredQuery)))
     .sort((a, b) => filter === "Прочитано" ? (b.completedAt ?? "").localeCompare(a.completedAt ?? "") : 0);
+  const monthGroups = filter === "Прочитано" ? (() => {
+    const groups = new Map<string, { label: string; sort: string; books: typeof visibleBooks }>();
+    for (const book of visibleBooks) {
+      const sort = book.completedAt ? book.completedAt.slice(0, 7) : "0000-00";
+      const label = book.completedAt ? (() => { const s = new Date(book.completedAt).toLocaleDateString("ru-RU", { month: "long", year: "numeric" }); return s.charAt(0).toUpperCase() + s.slice(1); })() : "Дата не указана";
+      if (!groups.has(sort)) groups.set(sort, { label, sort, books: [] });
+      groups.get(sort)!.books.push(book);
+    }
+    return [...groups.values()].sort((a, b) => b.sort.localeCompare(a.sort));
+  })() : [];
   const collectionNames = collections.map((collection) => collection.name).sort((first, second) => first.localeCompare(second, "ru"));
   const genreOptions = [...new Set(["Без жанра", ...books.map((book) => book.genre).filter(Boolean)])].sort((a, b) => a === "Без жанра" ? -1 : b === "Без жанра" ? 1 : a.localeCompare(b, "ru"));
 
@@ -248,14 +258,7 @@ export function LibraryView({ greetingTemplate }: { greetingTemplate: string }) 
     reader.readAsDataURL(file);
   }
 
-  return <>
-    <div className="page-content">
-      <p className="home-greeting">{greeting}</p>
-      <PageHeading eyebrow="Ходунячья библиотека ❤️" title="Книжная полочка" action={<button className="add-button" onClick={openNewBookComposer}><CirclePlus size={19} /><span>Добавить</span></button>} />
-      <label className="search-field"><Search size={19} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Поиск по библиотеке" /></label>
-      <div className="filter-row" aria-label="Фильтр по статусу">{filters.map((item) => <button key={item} onClick={() => setFilter(item)} className={filter === item ? "filter active" : "filter"}>{item}</button>)}</div>
-      <div className="book-grid" ref={bookGridRef}>
-        {visibleBooks.map((book) => <article className={deletingBookId === book.id ? "book-card is-deleting" : "book-card"} key={book.id}>
+  const renderBook = (book: Book): React.ReactElement => <article className={deletingBookId === book.id ? "book-card is-deleting" : "book-card"} key={book.id}>
           <button className="cover" style={{ "--cover": book.color, "--spine": book.spine } as React.CSSProperties} onClick={() => setSelectedBook(book)} aria-label={`Открыть детали: ${book.title}`}>
             {book.coverImage && <Image className="cover-image" src={book.coverImage} alt="" fill unoptimized sizes="(max-width: 680px) 50vw, 20vw" />}
             <span className="cover-spine" /><span className="cover-symbol">{book.initials}</span><span className="cover-title">{book.title}</span><span className="book-ghost" aria-hidden="true">👻</span>
@@ -267,7 +270,16 @@ export function LibraryView({ greetingTemplate }: { greetingTemplate: string }) 
             </div></div>
             <h3>{book.title}</h3><p>{book.author}</p><div className="book-footer"><span className={`status ${statusClass[book.status]}`}>{book.status === "Прочитано" && <Check size={13} />}{book.status}</span>{book.rating && <span className="rating">{book.rating}.0</span>}</div>
           </div>
-        </article>)}
+        </article>;
+
+  return <>
+    <div className="page-content">
+      <p className="home-greeting">{greeting}</p>
+      <PageHeading eyebrow="Ходунячья библиотека ❤️" title="Книжная полочка" action={<button className="add-button" onClick={openNewBookComposer}><CirclePlus size={19} /><span>Добавить</span></button>} />
+      <label className="search-field"><Search size={19} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Поиск по библиотеке" /></label>
+      <div className="filter-row" aria-label="Фильтр по статусу">{filters.map((item) => <button key={item} onClick={() => setFilter(item)} className={filter === item ? "filter active" : "filter"}>{item}</button>)}</div>
+      <div className="book-grid" ref={bookGridRef}>
+        {(filter === "Прочитано" ? monthGroups.flatMap(({ label, sort, books: gb }): React.ReactElement[] => [<h3 key={`hdr-${sort}`} className="month-group-header">{label}</h3>, ...gb.map(renderBook)]) : visibleBooks.map(renderBook))}
       </div>
       {!visibleBooks.length && <div className="empty-state"><BookOpen size={25} /><p>Таких книг пока нет.</p></div>}
     </div>
