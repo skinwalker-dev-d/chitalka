@@ -134,6 +134,7 @@ export function LibraryView({ greetingTemplate }: { greetingTemplate: string }) 
   const [isBookFlying, setIsBookFlying] = useState(false);
   const [flightStyle, setFlightStyle] = useState<FlightStyle | null>(null);
   const collectionFieldRef = useRef<HTMLDivElement>(null);
+  const statusFieldRef = useRef<HTMLDivElement>(null);
   const actionMenuRef = useRef<HTMLDivElement>(null);
   const bookGridRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLFormElement>(null);
@@ -173,6 +174,7 @@ export function LibraryView({ greetingTemplate }: { greetingTemplate: string }) 
   useEffect(() => {
     function closeFloatingControls(event: PointerEvent) {
       if (!collectionFieldRef.current?.contains(event.target as Node)) { setIsCollectionMenuOpen(false); setIsNewCollectionOpen(false); }
+      if (!statusFieldRef.current?.contains(event.target as Node)) setIsStatusMenuOpen(false);
       if (!actionMenuRef.current?.contains(event.target as Node)) setActionsMenuBookId(null);
     }
     document.addEventListener("pointerdown", closeFloatingControls);
@@ -181,7 +183,7 @@ export function LibraryView({ greetingTemplate }: { greetingTemplate: string }) 
 
   function resetComposer() {
     setTitle(""); setAuthor(""); setDescription(""); setSelectedCollections([]); setCoverImage(null); setCoverError(""); setStatus("Не читано"); setRating(0); setReview(""); setFormError("");
-    setIsCollectionMenuOpen(false); setIsNewCollectionOpen(false); setNewCollectionName(""); setEditingBook(null);
+    setIsCollectionMenuOpen(false); setIsNewCollectionOpen(false); setIsStatusMenuOpen(false); setNewCollectionName(""); setEditingBook(null);
   }
 
   function openNewBookComposer() { resetComposer(); setIsOpen(true); }
@@ -284,7 +286,7 @@ export function LibraryView({ greetingTemplate }: { greetingTemplate: string }) 
         <label>Описание<textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="О чем эта книга и почему она тебе запомнилась" maxLength={500} disabled={isBookFlying} /></label>
         <div className="cover-upload"><span>Обложка</span>{coverImage ? <div className="cover-preview"><Image src={coverImage} alt="Предпросмотр обложки" width={52} height={70} unoptimized /><div><strong>Обложка выбрана</strong><button type="button" onClick={() => setCoverImage(null)}><X size={15} /> Удалить</button></div></div> : <label className="cover-upload-trigger"><ImagePlus size={20} /><span>Загрузить обложку</span><small>PNG, JPEG или WebP до 2 МБ</small><input type="file" accept="image/png,image/jpeg,image/webp" onChange={selectCover} disabled={isBookFlying} /></label>}{coverError && <p className="cover-error" role="alert">{coverError}</p>}</div>
         <div className="collection-field" ref={collectionFieldRef}><span>Коллекции</span><button type="button" className="collection-trigger" onClick={() => setIsCollectionMenuOpen((open) => !open)} aria-expanded={isCollectionMenuOpen} disabled={isBookFlying}><span>{selectedCollections.length ? selectedCollections.join(", ") : "Выбрать коллекции"}</span><ChevronDown size={18} /></button>{isCollectionMenuOpen && <div className="collection-menu"><button className="create-collection-option" type="button" onClick={() => setIsNewCollectionOpen(true)}><Plus size={16} /> Создать коллекцию</button><div className="collection-options">{collectionNames.map((collection) => <label key={collection}><input type="checkbox" checked={selectedCollections.includes(collection)} onChange={() => toggleCollection(collection)} /><span>{collection}</span></label>)}{!collectionNames.length && <p>Коллекций пока нет.</p>}</div></div>}{isNewCollectionOpen && <div className="new-collection-row"><input autoFocus value={newCollectionName} onChange={(event) => setNewCollectionName(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); createCollection(); } }} placeholder="Название новой коллекции" /><button type="button" onClick={createCollection}>Создать</button></div>}</div>
-        <label>Статус<select value={status} onChange={(event) => setStatus(event.target.value as BookStatus)} disabled={isBookFlying}>{filters.slice(1).map((item) => <option key={item}>{item}</option>)}</select></label>
+        <div className="collection-field" ref={statusFieldRef}><span>Статус</span><button type="button" className="collection-trigger" onClick={(event) => { const rect = event.currentTarget.getBoundingClientRect(); setIsStatusMenuUp(window.innerHeight - rect.bottom < 210); setIsStatusMenuOpen((open) => !open); }} aria-expanded={isStatusMenuOpen} disabled={isBookFlying}><span>{status}</span><ChevronDown size={18} /></button>{isStatusMenuOpen && <div className={isStatusMenuUp ? "collection-menu opens-up" : "collection-menu"}><div className="collection-options">{filters.slice(1).map((item) => <label key={item}><input type="radio" name="book-status" checked={item === status} onChange={() => { setStatus(item as BookStatus); setIsStatusMenuOpen(false); }} /><span>{item}</span></label>)}</div></div>}</div>
         {status === "Прочитано" && <><fieldset className="rating-picker"><legend>Оценка</legend><div>{Array.from({ length: 10 }, (_, index) => index + 1).map((value) => <button type="button" className={rating >= value ? "active" : ""} onClick={() => setRating(value)} key={value}><Star size={17} fill="currentColor" /></button>)}</div></fieldset><label>Ревью<textarea value={review} onChange={(event) => setReview(event.target.value)} placeholder="Твои впечатления от книги" maxLength={1000} /></label></>}
         {formError && <p className="review-error" role="alert">{formError}</p>}
         <button className="submit-button" type="submit" disabled={isBookFlying}>{editingBook ? "Сохранить изменения" : "Добавить в библиотеку"}</button>
