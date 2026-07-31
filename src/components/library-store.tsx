@@ -41,8 +41,6 @@ type LibraryStore = {
   removeGoal: (goalId: number) => void;
 };
 
-const collectionsKey = "listat-collections-v1";
-const goalsKey = "listat-reading-goals-v1";
 const initialBooks: Book[] = [
   { id: 1, title: "Мастер и Маргарита", author: "Михаил Булгаков", genre: "Классика", status: "Читаю", rating: 5, color: "#b55c43", spine: "#e7b89d", initials: "ММ", collections: ["Ноябрьское чтение", "Классика"] },
   { id: 2, title: "Семь мужей Эвелин Хьюго", author: "Тейлор Дженкинс Рид", genre: "Роман", status: "Не читано", color: "#1f7068", spine: "#b9dfd5", initials: "СМ", collections: ["Ноябрьское чтение"] },
@@ -50,33 +48,12 @@ const initialBooks: Book[] = [
   { id: 4, title: "Пикник на обочине", author: "Аркадий и Борис Стругацкие", genre: "Фантастика", status: "Не читано", color: "#6a5a99", spine: "#d8cdea", initials: "ПО", collections: ["Ноябрьское чтение"] },
   { id: 5, title: "Завет воды", author: "Абрахам Вергезе", genre: "Современная проза", status: "Хочу купить", color: "#385b8e", spine: "#c7d8ed", initials: "ЗВ", collections: ["Хочу купить"] },
 ];
-const initialGoals: ReadingGoal[] = [{ id: 1, title: "Ноябрьское чтение", bookIds: [1, 2, 4] }];
 const LibraryContext = createContext<LibraryStore | null>(null);
 
 function collectNames(books: Book[]): LibraryCollection[] {
   return Array.from(new Set(books.flatMap((book) => book.collections)))
     .sort((first, second) => first.localeCompare(second, "ru"))
     .map((name) => ({ id: `collection-${name.toLocaleLowerCase("ru").replace(/[^a-zа-яё0-9]+/gi, "-")}`, name }));
-}
-
-function readStored<T>(key: string): T[] | null {
-  try {
-    const value: unknown = JSON.parse(window.localStorage.getItem(key) ?? "null");
-    return Array.isArray(value) ? value as T[] : null;
-  } catch {
-    window.localStorage.removeItem(key);
-    return null;
-  }
-}
-
-function migrateGoals(goals: unknown[], books: Book[]): ReadingGoal[] {
-  return goals.flatMap((goal) => {
-    if (!goal || typeof goal !== "object" || !("id" in goal) || !("title" in goal)) return [];
-    const record = goal as { id: unknown; title: unknown; bookIds?: unknown };
-    if (typeof record.id !== "number" || typeof record.title !== "string") return [];
-    const bookIds = Array.isArray(record.bookIds) ? record.bookIds.filter((id): id is number => typeof id === "number" && books.some((book) => book.id === id)) : [];
-    return [{ id: record.id, title: record.title, bookIds }];
-  });
 }
 
 export function getGoalProgress(goal: ReadingGoal, books: Book[]) {
@@ -87,8 +64,7 @@ export function getGoalProgress(goal: ReadingGoal, books: Book[]) {
 export function LibraryProvider({ children }: { children: React.ReactNode }) {
   const [books, setBooks] = useState<Book[]>([]);
   const [collections, setCollections] = useState(() => collectNames(initialBooks));
-  const [goals, setGoals] = useState(initialGoals);
-  const [isHydrated, setIsHydrated] = useState(false);
+  const [goals, setGoals] = useState<ReadingGoal[]>([]);
 
   useEffect(() => {
     let isActive = true;
@@ -101,22 +77,16 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
         const storedBooks = (data as StoredBook[]).map(fromStoredBook);
         setBooks(storedBooks);
         setCollections(collectNames(storedBooks));
-        const storedGoals = readStored<unknown>(goalsKey);
-        setGoals(storedGoals ? migrateGoals(storedGoals, storedBooks) : initialGoals);
+        const { data: goalsData } = await supabase.from("goals").select("id, title, book_ids").order("created_at", { ascending: false });
+        if (isActive) setGoals((goalsData ?? []).map(fromStoredGoal));
       } catch {
         if (!isActive) return;
         setCollections([]);
-        setGoals([]);
-      } finally {
-        if (isActive) setIsHydrated(true);
       }
     }
     void hydrateLibrary();
     return () => { isActive = false; };
   }, []);
-
-  useEffect(() => { if (isHydrated) window.localStorage.setItem(collectionsKey, JSON.stringify(collections)); }, [collections, isHydrated]);
-  useEffect(() => { if (isHydrated) window.localStorage.setItem(goalsKey, JSON.stringify(goals)); }, [goals, isHydrated]);
 
   function addBook(book: Omit<Book, "id">) {
     const pendingBook = { ...book, completedAt: book.status === "Прочитано" ? book.completedAt ?? new Date().toISOString() : undefined, id: Date.now() };
@@ -175,9 +145,21 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
     if (!book || (book.status === "Читаю" && (!book.rating || !book.review?.trim()))) return;
     updateBook(bookId, { status: next[book.status] });
   }
-  function addGoal(title: string, bookIds: number[]) { setGoals((current) => [{ id: Date.now(), title, bookIds }, ...current]); }
-  function updateGoal(goalId: number, updates: Pick<ReadingGoal, "title" | "bookIds">) { setGoals((current) => current.map((goal) => goal.id === goalId ? { ...goal, ...updates } : goal)); }
-  function removeGoal(goalId: number) { setGoals((current) => current.filter((goal) => goal.id !== goalId)); }
+  function addGoal(title: string, bookIds: number[]) {
+    const pendingId = Date.now();
+    setGoals((current) => [{ id: pendingId, title, bookIds }, ...current]);
+    void createSupabaseBrowserClient().from("goals").insert({ title, book_ids: bookIds }).select("id, title, book_ids").single().then(({ data }) => {
+      if (data) setGoals((current) => current.map((goal) => goal.id === pendingId ? fromStoredGoal(data as StoredGoal) : goal));
+    });
+  }
+  function updateGoal(goalId: number, updates: Pick<ReadingGoal, "title" | "bookIds">) {
+    setGoals((current) => current.map((goal) => goal.id === goalId ? { ...goal, ...updates } : goal));
+    void createSupabaseBrowserClient().from("goals").update({ title: updates.title, book_ids: updates.bookIds }).eq("id", goalId);
+  }
+  function removeGoal(goalId: number) {
+    setGoals((current) => current.filter((goal) => goal.id !== goalId));
+    void createSupabaseBrowserClient().from("goals").delete().eq("id", goalId);
+  }
 
   return <LibraryContext value={{ books, collections, goals, addBook, updateBook, deleteBook, createCollection, updateCollection, deleteCollection, advanceStatus, addGoal, updateGoal, removeGoal }}>{children}</LibraryContext>;
 }
@@ -196,4 +178,10 @@ function fromStoredBook(book: StoredBook): Book {
 
 function toStoredBook(book: Omit<Book, "id">) {
   return { title: book.title, author: book.author, description: book.description ?? null, genre: book.genre, status: book.status, completed_at: book.completedAt ?? null, rating: book.rating ?? null, review: book.review ?? null, color: book.color, spine: book.spine, initials: book.initials, cover_image: book.coverImage ?? null, collections: book.collections };
+}
+
+type StoredGoal = { id: number; title: string; book_ids: number[] };
+
+function fromStoredGoal(goal: StoredGoal): ReadingGoal {
+  return { id: goal.id, title: goal.title, bookIds: goal.book_ids };
 }
