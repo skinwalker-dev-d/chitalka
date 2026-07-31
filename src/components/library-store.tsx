@@ -110,7 +110,7 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
     const status = updates.status ?? book.status;
     const updatedBook = { ...book, ...updates, completedAt: status === "Прочитано" ? book.completedAt ?? updates.completedAt ?? new Date().toISOString() : undefined };
     setBooks((current) => current.map((currentBook) => currentBook.id === bookId ? updatedBook : currentBook));
-    void createSupabaseBrowserClient().from("books").update(toStoredBook(updatedBook)).eq("id", bookId);
+    void createSupabaseBrowserClient().from("books").update(toStoredBook(updatedBook)).eq("id", bookId).then(({ error }) => { if (error) console.error("[updateBook] failed:", error); });
   }
   function deleteBook(bookId: number) {
     setBooks((current) => current.filter((book) => book.id !== bookId));
