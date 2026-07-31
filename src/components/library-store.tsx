@@ -119,7 +119,9 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
   function createCollection(name: string, bookIds: number[]) {
     const trimmedName = name.trim();
     if (!trimmedName || collections.some((collection) => collection.name.localeCompare(trimmedName, "ru", { sensitivity: "accent" }) === 0)) return null;
-    const collection = { id: crypto.randomUUID(), name: trimmedName };
+    // crypto.randomUUID requires secure context; fall back to Math.random for HTTP dev
+    const uuid = typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+    const collection = { id: uuid, name: trimmedName };
     setCollections((current) => [...current, collection]);
     void createSupabaseBrowserClient().from("collections").insert({ id: collection.id, name: trimmedName }).then(({ error }) => { if (error) console.error("[collections] insert failed:", error); });
     const updatedBooks = books.map((book) => bookIds.includes(book.id) && !book.collections.includes(trimmedName) ? { ...book, collections: [...book.collections, trimmedName] } : book);
