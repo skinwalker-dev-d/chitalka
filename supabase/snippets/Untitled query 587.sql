@@ -1,1 +1,1 @@
-Select * from books
+Select * from collections

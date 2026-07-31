@@ -309,6 +309,7 @@ export function CollectionsView() {
   const [collectionPendingDeletion, setCollectionPendingDeletion] = useState<LibraryCollection | null>(null);
   const [collectionName, setCollectionName] = useState("");
   const [selectedBookIds, setSelectedBookIds] = useState<number[]>([]);
+  const isCollectionFlyingRef = useRef(false);
   const sortedCollections = [...collections].sort((first, second) => first.name.localeCompare(second.name, "ru"));
 
   function closeEditor() { setEditingCollection(null); setIsCreateOpen(false); setCollectionName(""); setSelectedBookIds([]); }
@@ -321,14 +322,26 @@ export function CollectionsView() {
   }
   function saveCollection(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!collectionName.trim()) return;
+    if (!collectionName.trim() || isCollectionFlyingRef.current) return;
     if (editingCollection) {
       updateCollection(editingCollection.id, collectionName, selectedBookIds);
       if (browsedCollection?.name === editingCollection.name) setBrowsedCollection({ id: editingCollection.id, name: collectionName.trim() });
-    } else {
-      createCollection(collectionName, selectedBookIds);
+      closeEditor();
+      return;
     }
-    closeEditor();
+    const collection = createCollection(collectionName, selectedBookIds);
+    if (!collection) return;
+    const form = event.currentTarget;
+    const target = document.querySelector<HTMLElement>(".collection-page-grid")?.getBoundingClientRect();
+    const formRect = form.getBoundingClientRect();
+    if (!target) { closeEditor(); return; }
+    isCollectionFlyingRef.current = true;
+    form.dataset.collectionTitle = collection.name;
+    form.style.setProperty("--collection-flight-x", `${target.left - formRect.left}px`);
+    form.style.setProperty("--collection-flight-y", `${target.top - formRect.top}px`);
+    form.style.setProperty("--collection-flight-width", `${Math.min(target.width / 2, 220)}px`);
+    form.classList.add("is-collection-flying");
+    window.setTimeout(() => { isCollectionFlyingRef.current = false; closeEditor(); }, 620);
   }
   function removeCollection(collection: LibraryCollection) {
     setCollectionPendingDeletion(null);

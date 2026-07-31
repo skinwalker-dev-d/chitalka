@@ -121,7 +121,7 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
     if (!trimmedName || collections.some((collection) => collection.name.localeCompare(trimmedName, "ru", { sensitivity: "accent" }) === 0)) return null;
     const collection = { id: crypto.randomUUID(), name: trimmedName };
     setCollections((current) => [...current, collection]);
-    void createSupabaseBrowserClient().from("collections").insert({ id: collection.id, name: trimmedName });
+    void createSupabaseBrowserClient().from("collections").insert({ id: collection.id, name: trimmedName }).then(({ error }) => { if (error) console.error("[collections] insert failed:", error); });
     const updatedBooks = books.map((book) => bookIds.includes(book.id) && !book.collections.includes(trimmedName) ? { ...book, collections: [...book.collections, trimmedName] } : book);
     setBooks(updatedBooks);
     updatedBooks.filter((book) => bookIds.includes(book.id)).forEach((book) => { void createSupabaseBrowserClient().from("books").update(toStoredBook(book)).eq("id", book.id); });
