@@ -274,7 +274,7 @@ export function LibraryView({ greetingTemplate }: { greetingTemplate: string }) 
   const renderBook = (book: Book): React.ReactElement => <article className={deletingBookId === book.id ? "book-card is-deleting" : "book-card"} key={book.id}>
           <button className="cover" style={{ "--cover": book.color, "--spine": book.spine } as React.CSSProperties} onClick={() => setSelectedBook(book)} aria-label={`Открыть детали: ${book.title}`}>
             {book.coverImage && <Image className="cover-image" src={book.coverImage} alt="" fill unoptimized sizes="(max-width: 680px) 50vw, 20vw" />}
-            <span className="cover-spine" /><span className="cover-symbol">{book.initials}</span><span className="cover-title">{book.title}</span><span className="book-ghost" aria-hidden="true">👻</span>
+            <span className="cover-spine" />{!book.coverImage && <span className="cover-symbol">{book.initials}</span>}<span className="cover-title">{book.title}</span><span className="book-ghost" aria-hidden="true">👻</span>
           </button>
           <div className="book-details">
             <div className="book-meta"><span>{book.genre}</span><div className="book-actions" ref={actionsMenuBookId === book.id ? actionMenuRef : undefined}>
