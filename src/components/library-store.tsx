@@ -193,7 +193,11 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
     const trimmed = name.trim();
     if (!trimmed || genres.some((g) => g.localeCompare(trimmed, "ru", { sensitivity: "accent" }) === 0)) return;
     setGenres((current) => [...current, trimmed].sort((a, b) => a.localeCompare(b, "ru")));
-    void createSupabaseBrowserClient().from("genres").upsert({ name: trimmed }).then(({ error }) => { if (error) console.error("[addGenre] failed:", error); });
+    const sb = createSupabaseBrowserClient();
+    void sb.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      void sb.from("genres").upsert({ name: trimmed, user_id: user.id }).then(({ error }) => { if (error) console.error("[addGenre] failed:", error); });
+    });
   }
   function renameGenre(oldName: string, newName: string) {
     const trimmed = newName.trim();
