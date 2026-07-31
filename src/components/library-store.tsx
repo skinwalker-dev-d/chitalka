@@ -108,7 +108,12 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
     const book = books.find((currentBook) => currentBook.id === bookId);
     if (!book) return;
     const status = updates.status ?? book.status;
-    const updatedBook = { ...book, ...updates, completedAt: status === "Прочитано" ? book.completedAt ?? updates.completedAt ?? new Date().toISOString() : undefined };
+    // Only stamp completedAt when transitioning INTO "Прочитано"; preserve existing value (or undefined) otherwise
+    const transitioningToRead = status === "Прочитано" && book.status !== "Прочитано";
+    const completedAt = status === "Прочитано"
+      ? (transitioningToRead ? (book.completedAt ?? updates.completedAt ?? new Date().toISOString()) : book.completedAt)
+      : undefined;
+    const updatedBook = { ...book, ...updates, completedAt };
     setBooks((current) => current.map((currentBook) => currentBook.id === bookId ? updatedBook : currentBook));
     void createSupabaseBrowserClient().from("books").update(toStoredBook(updatedBook)).eq("id", bookId).then(({ error }) => { if (error) console.error("[updateBook] failed:", error); });
   }
