@@ -29,6 +29,7 @@ type LibraryStore = {
   books: Book[];
   collections: LibraryCollection[];
   goals: ReadingGoal[];
+  genres: string[];
   addBook: (book: Omit<Book, "id">) => void;
   updateBook: (bookId: number, updates: Partial<Omit<Book, "id">>) => void;
   deleteBook: (bookId: number) => void;
@@ -39,6 +40,9 @@ type LibraryStore = {
   addGoal: (title: string, bookIds: number[]) => void;
   updateGoal: (goalId: number, updates: Pick<ReadingGoal, "title" | "bookIds">) => void;
   removeGoal: (goalId: number) => void;
+  addGenre: (name: string) => void;
+  renameGenre: (oldName: string, newName: string) => void;
+  deleteGenre: (name: string) => void;
 };
 
 const initialBooks: Book[] = [
@@ -65,6 +69,7 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
   const [books, setBooks] = useState<Book[]>([]);
   const [collections, setCollections] = useState(() => collectNames(initialBooks));
   const [goals, setGoals] = useState<ReadingGoal[]>([]);
+  const [genres, setGenres] = useState<string[]>([]);
 
   useEffect(() => {
     let isActive = true;
@@ -88,6 +93,8 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
         }
         const { data: goalsData } = await supabase.from("goals").select("id, title, book_ids").order("created_at", { ascending: false });
         if (isActive) setGoals((goalsData ?? []).map(fromStoredGoal));
+        const { data: genresData } = await supabase.from("genres").select("name").order("name");
+        if (isActive) setGenres((genresData ?? []).map((g: { name: string }) => g.name));
       } catch {
         if (!isActive) return;
         setCollections([]);
@@ -182,8 +189,32 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
     setGoals((current) => current.filter((goal) => goal.id !== goalId));
     void createSupabaseBrowserClient().from("goals").delete().eq("id", goalId);
   }
+  function addGenre(name: string) {
+    const trimmed = name.trim();
+    if (!trimmed || genres.some((g) => g.localeCompare(trimmed, "ru", { sensitivity: "accent" }) === 0)) return;
+    setGenres((current) => [...current, trimmed].sort((a, b) => a.localeCompare(b, "ru")));
+    void createSupabaseBrowserClient().from("genres").upsert({ name: trimmed }).then(({ error }) => { if (error) console.error("[addGenre] failed:", error); });
+  }
+  function renameGenre(oldName: string, newName: string) {
+    const trimmed = newName.trim();
+    if (!trimmed || trimmed === oldName) return;
+    setGenres((current) => current.map((g) => g === oldName ? trimmed : g).sort((a, b) => a.localeCompare(b, "ru")));
+    const updatedBooks = books.map((book) => book.genre === oldName ? { ...book, genre: trimmed } : book);
+    setBooks(updatedBooks);
+    const sb = createSupabaseBrowserClient();
+    void sb.from("genres").update({ name: trimmed }).eq("name", oldName).then(({ error }) => { if (error) console.error("[renameGenre] genres failed:", error); });
+    void sb.from("books").update({ genre: trimmed }).eq("genre", oldName).then(({ error }) => { if (error) console.error("[renameGenre] books failed:", error); });
+  }
+  function deleteGenre(name: string) {
+    setGenres((current) => current.filter((g) => g !== name));
+    const updatedBooks = books.map((book) => book.genre === name ? { ...book, genre: "" } : book);
+    setBooks(updatedBooks);
+    const sb = createSupabaseBrowserClient();
+    void sb.from("genres").delete().eq("name", name).then(({ error }) => { if (error) console.error("[deleteGenre] genres failed:", error); });
+    void sb.from("books").update({ genre: "" }).eq("genre", name).then(({ error }) => { if (error) console.error("[deleteGenre] books failed:", error); });
+  }
 
-  return <LibraryContext value={{ books, collections, goals, addBook, updateBook, deleteBook, createCollection, updateCollection, deleteCollection, advanceStatus, addGoal, updateGoal, removeGoal }}>{children}</LibraryContext>;
+  return <LibraryContext value={{ books, collections, goals, genres, addBook, updateBook, deleteBook, createCollection, updateCollection, deleteCollection, advanceStatus, addGoal, updateGoal, removeGoal, addGenre, renameGenre, deleteGenre }}>{children}</LibraryContext>;
 }
 
 export function useLibrary() {

@@ -117,7 +117,7 @@ function CollectionBookEditor({ book, onClose }: { book: Book; onClose: () => vo
 }
 
 export function LibraryView({ greetingTemplate }: { greetingTemplate: string }) {
-  const { books, collections, addBook, updateBook, deleteBook, createCollection: addCollection, advanceStatus } = useLibrary();
+  const { books, collections, genres, addBook, updateBook, deleteBook, createCollection: addCollection, advanceStatus, addGenre, renameGenre, deleteGenre } = useLibrary();
   const [profileName, setProfileName] = useState("");
   const [filter, setFilter] = useState<BookStatus | "Все">("Все");
   const [query, setQuery] = useState("");
@@ -126,6 +126,13 @@ export function LibraryView({ greetingTemplate }: { greetingTemplate: string }) 
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [isGenreBrowserOpen, setIsGenreBrowserOpen] = useState(false);
   const [browsedGenre, setBrowsedGenre] = useState<string | null>(null);
+  const [genreMenuId, setGenreMenuId] = useState<string | null>(null);
+  const [genreMenuUp, setGenreMenuUp] = useState(false);
+  const [editingGenre, setEditingGenre] = useState<string | null>(null);
+  const [editingGenreName, setEditingGenreName] = useState("");
+  const [isAddingGenre, setIsAddingGenre] = useState(false);
+  const [newGenreInput, setNewGenreInput] = useState("");
+  const [genrePendingDelete, setGenrePendingDelete] = useState<string | null>(null);
   const [deletingBookId, setDeletingBookId] = useState<number | null>(null);
   const [reviewingBook, setReviewingBook] = useState<Book | null>(null);
   const [actionsMenuBookId, setActionsMenuBookId] = useState<number | null>(null);
@@ -174,8 +181,8 @@ export function LibraryView({ greetingTemplate }: { greetingTemplate: string }) 
     return [...groups.values()].sort((a, b) => b.sort.localeCompare(a.sort));
   })() : [];
   const collectionNames = collections.map((collection) => collection.name).sort((first, second) => first.localeCompare(second, "ru"));
-  const genreOptions = [...new Set(["Без жанра", ...books.map((book) => book.genre).filter(Boolean)])].sort((a, b) => a === "Без жанра" ? -1 : b === "Без жанра" ? 1 : a.localeCompare(b, "ru"));
-  const allGenres = [...new Set(books.map((book) => book.genre).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ru")).map((name) => ({ name, count: books.filter((book) => book.genre === name).length }));
+  const genreOptions = [...new Set(["Без жанра", ...genres, ...books.map((book) => book.genre).filter(Boolean)])].sort((a, b) => a === "Без жанра" ? -1 : b === "Без жанра" ? 1 : a.localeCompare(b, "ru"));
+  const allGenres = [...new Set([...genres, ...books.map((book) => book.genre).filter(Boolean)])].sort((a, b) => a.localeCompare(b, "ru")).map((name) => ({ name, count: books.filter((book) => book.genre === name).length }));
 
   useEffect(() => {
     async function loadProfileName() {
@@ -281,7 +288,7 @@ export function LibraryView({ greetingTemplate }: { greetingTemplate: string }) 
       <PageHeading eyebrow="Ходунячья библиотека ❤️" title="Книжная полочка" action={<button className="add-button" onClick={openNewBookComposer}><CirclePlus size={19} /><span>Добавить</span></button>} />
       <label className="search-field"><Search size={19} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Поиск по библиотеке" /></label>
       <div className="filter-row" aria-label="Фильтр по статусу">{filters.map((item) => <button key={item} onClick={() => { setFilter(item); setIsGenreBrowserOpen(false); }} className={filter === item ? "filter active" : "filter"}>{item}</button>)}<button className={`filter${(isGenreBrowserOpen || browsedGenre) ? " active" : ""}`} onClick={() => setIsGenreBrowserOpen((v) => !v)}>Жанры</button></div>
-      {isGenreBrowserOpen ? <div className="collection-page-grid" style={{ marginTop: "25px" }}>{allGenres.map(({ name, count }) => <article key={name} className="collection-tile"><button type="button" className="collection-tile-main" onClick={() => { setBrowsedGenre(name); setIsGenreBrowserOpen(false); }}><span><Sparkles size={20} /></span><strong>{name}</strong><small>{count} {count === 1 ? "книга" : "книг"}</small></button></article>)}{!allGenres.length && <div className="empty-state" style={{ gridColumn: "1 / -1" }}><Sparkles size={25} /><p>Жанры пока не заданы.</p></div>}</div> : <><div className="book-grid" ref={bookGridRef}>
+      {isGenreBrowserOpen ? <><div className="section-heading" style={{ marginTop: "20px" }}><h2>Жанры</h2><button type="button" className="add-button" onClick={() => setIsAddingGenre(true)}><CirclePlus size={19} /><span>Добавить</span></button></div><div className="collection-page-grid">{allGenres.map(({ name, count }) => <article key={name} className="collection-tile"><button type="button" className="collection-tile-main" onClick={() => { setBrowsedGenre(name); setIsGenreBrowserOpen(false); }}><span><Sparkles size={20} /></span><strong>{name}</strong><small>{count} {count === 1 ? "книга" : "книг"}</small></button><div className="collection-actions"><button type="button" className="collection-menu-trigger" onClick={(e) => { const b = e.currentTarget.getBoundingClientRect(); setGenreMenuUp(window.innerHeight - b.bottom < 120); setGenreMenuId((v) => v === name ? null : name); }} aria-label={`Действия с жанром ${name}`} aria-expanded={genreMenuId === name}><MoreHorizontal size={18} /></button>{genreMenuId === name && <div className={genreMenuUp ? "book-action-menu opens-up" : "book-action-menu"} role="menu"><button role="menuitem" onClick={() => { setEditingGenre(name); setEditingGenreName(name); setGenreMenuId(null); }}><Pencil size={15} /> Переименовать</button><button className="collection-delete-option" role="menuitem" onClick={() => { setGenrePendingDelete(name); setGenreMenuId(null); }}><Trash2 size={15} /> Удалить жанр</button></div>}</div></article>)}{!allGenres.length && <div className="empty-state" style={{ gridColumn: "1 / -1" }}><Sparkles size={25} /><p>Жанры пока не заданы.</p></div>}</div></> : <><div className="book-grid" ref={bookGridRef}>
         {(filter === "Прочитано" ? monthGroups.flatMap(({ label, sort, books: gb }): React.ReactElement[] => [<h3 key={`hdr-${sort}`} className="month-group-header">{label}</h3>, ...gb.map(renderBook)]) : visibleBooks.map(renderBook))}
       </div>
       {!visibleBooks.length && !isGenreBrowserOpen && <div className="empty-state"><BookOpen size={25} /><p>Таких книг пока нет.</p></div>}
@@ -304,6 +311,9 @@ export function LibraryView({ greetingTemplate }: { greetingTemplate: string }) 
       </form>
     </div>}
     {browsedGenre && <CollectionBooksModal name={browsedGenre} eyebrow="Жанр" books={books.filter((book) => book.genre === browsedGenre)} onClose={() => setBrowsedGenre(null)} onSelectBook={(book) => setSelectedBook(book)} />}
+    {editingGenre !== null && <div className="modal-backdrop" role="presentation" onMouseDown={() => setEditingGenre(null)}><form className="book-composer" style={{ maxWidth: "360px" }} onSubmit={(e) => { e.preventDefault(); const t = editingGenreName.trim(); if (t && t !== editingGenre) renameGenre(editingGenre, t); setEditingGenre(null); }} onMouseDown={(e) => e.stopPropagation()}><div className="composer-heading"><div><p className="eyebrow">Жанр</p><h2>Переименовать жанр</h2></div><button type="button" className="icon-button" onClick={() => setEditingGenre(null)} aria-label="Закрыть">×</button></div><label>Новое название<input autoFocus value={editingGenreName} onChange={(e) => setEditingGenreName(e.target.value)} placeholder="Название жанра" /></label><button className="submit-button" type="submit">Сохранить</button></form></div>}
+    {isAddingGenre && <div className="modal-backdrop" role="presentation" onMouseDown={() => { setIsAddingGenre(false); setNewGenreInput(""); }}><form className="book-composer" style={{ maxWidth: "360px" }} onSubmit={(e) => { e.preventDefault(); if (newGenreInput.trim()) addGenre(newGenreInput.trim()); setIsAddingGenre(false); setNewGenreInput(""); }} onMouseDown={(e) => e.stopPropagation()}><div className="composer-heading"><div><p className="eyebrow">Жанры</p><h2>Добавить жанр</h2></div><button type="button" className="icon-button" onClick={() => { setIsAddingGenre(false); setNewGenreInput(""); }} aria-label="Закрыть">×</button></div><label>Название<input autoFocus value={newGenreInput} onChange={(e) => setNewGenreInput(e.target.value)} placeholder="Например, Классика" /></label><button className="submit-button" type="submit" disabled={!newGenreInput.trim()}>Добавить жанр</button></form></div>}
+    {genrePendingDelete && <div className="modal-backdrop confirmation-backdrop" role="presentation" onMouseDown={() => setGenrePendingDelete(null)}><section className="confirmation-modal" role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()}><p className="eyebrow">Удаление жанра</p><h2>Удалить жанр «{genrePendingDelete}»?{books.filter((b) => b.genre === genrePendingDelete).length > 0 && ` У ${books.filter((b) => b.genre === genrePendingDelete).length} книг будет снят жанр.`}</h2><div className="confirmation-actions"><button type="button" className="confirmation-cancel" onClick={() => setGenrePendingDelete(null)}>Отменить</button><button type="button" className="confirmation-delete" onClick={() => { deleteGenre(genrePendingDelete); setGenrePendingDelete(null); }}>Удалить</button></div></section></div>}
     {selectedBook && <BookDetailsModal book={selectedBook} onClose={() => setSelectedBook(null)} onDelete={animateBookDeletion} onEdit={() => { setSelectedBook(null); openBookEditor(selectedBook); }} onRequestRead={() => { setSelectedBook(null); setReviewingBook(selectedBook); }} onAdvanceStatus={() => { advanceStatus(selectedBook.id); setSelectedBook((current) => current ? { ...current, status: current.status === "Не читано" ? "Читаю" : current.status === "Читаю" ? "Прочитано" : "Не читано" } : null); }} />}
     {reviewingBook && <ReadReviewModal book={reviewingBook} onClose={() => setReviewingBook(null)} onComplete={(completedRating, completedReview) => { updateBook(reviewingBook.id, { status: "Прочитано", rating: completedRating, review: completedReview }); setReviewingBook(null); }} />}
   </>;
