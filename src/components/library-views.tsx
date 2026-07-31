@@ -127,6 +127,8 @@ export function LibraryView({ greetingTemplate }: { greetingTemplate: string }) 
   const [formError, setFormError] = useState("");
   const [selectedCollections, setSelectedCollections] = useState<string[]>([]);
   const [isCollectionMenuOpen, setIsCollectionMenuOpen] = useState(false);
+  const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
+  const [isStatusMenuUp, setIsStatusMenuUp] = useState(false);
   const [isNewCollectionOpen, setIsNewCollectionOpen] = useState(false);
   const [newCollectionName, setNewCollectionName] = useState("");
   const [coverImage, setCoverImage] = useState<string | null>(null);
