@@ -160,6 +160,7 @@ export function LibraryView({ greetingTemplate }: { greetingTemplate: string }) 
   const deferredQuery = useDeferredValue(query.trim().toLowerCase());
   const visibleBooks = books.filter((book) => (filter === "Все" || book.status === filter) && (!deferredQuery || `${book.title} ${book.author} ${book.genre}`.toLowerCase().includes(deferredQuery)));
   const collectionNames = collections.map((collection) => collection.name).sort((first, second) => first.localeCompare(second, "ru"));
+  const genreOptions = [...new Set(["Без жанра", ...books.map((book) => book.genre).filter(Boolean)])].sort((a, b) => a === "Без жанра" ? -1 : b === "Без жанра" ? 1 : a.localeCompare(b, "ru"));
   const completedBooks = books.filter((book) => book.status === "Прочитано");
   const currentDate = new Date();
   const completedThisMonth = completedBooks.filter((book) => {
