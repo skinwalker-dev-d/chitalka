@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Compass, Heart, LibraryBig, LogOut, Pencil, Target, X } from "lucide-react";
+import { BookOpen, BarChart2, Compass, Heart, LibraryBig, LogOut, Pencil, Target, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -11,6 +11,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 const links = [
   { href: "/", label: "Библиотека", icon: LibraryBig },
   { href: "/collections", label: "Коллекции", icon: Heart },
+  { href: "/stats", label: "Статистика", icon: BarChart2 },
   { href: "/goals", label: "Цели", icon: Target },
   { href: "/discover", label: "Открытия", icon: Compass },
 ];

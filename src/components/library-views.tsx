@@ -161,23 +161,6 @@ export function LibraryView({ greetingTemplate }: { greetingTemplate: string }) 
   const visibleBooks = books.filter((book) => (filter === "Все" || book.status === filter) && (!deferredQuery || `${book.title} ${book.author} ${book.genre}`.toLowerCase().includes(deferredQuery)));
   const collectionNames = collections.map((collection) => collection.name).sort((first, second) => first.localeCompare(second, "ru"));
   const genreOptions = [...new Set(["Без жанра", ...books.map((book) => book.genre).filter(Boolean)])].sort((a, b) => a === "Без жанра" ? -1 : b === "Без жанра" ? 1 : a.localeCompare(b, "ru"));
-  const completedBooks = books.filter((book) => book.status === "Прочитано");
-  const currentDate = new Date();
-  const completedThisMonth = completedBooks.filter((book) => {
-    if (!book.completedAt) return false;
-    const completedDate = new Date(book.completedAt);
-    return completedDate.getFullYear() === currentDate.getFullYear() && completedDate.getMonth() === currentDate.getMonth();
-  }).length;
-  const unreadBooks = books.filter((book) => book.status === "Не читано").length;
-  const purchasedBooks = books.filter((book) => book.status !== "Хочу купить").length;
-  const favoriteFrom = (values: string[]) => {
-    const counts = new Map<string, number>();
-    values.forEach((value) => counts.set(value, (counts.get(value) ?? 0) + 1));
-    return [...counts.entries()].sort((first, second) => second[1] - first[1] || first[0].localeCompare(second[0], "ru"))[0]?.[0] ?? "Пока нет";
-  };
-  const favoriteAuthor = favoriteFrom(completedBooks.map((book) => book.author));
-  const favoriteGenre = favoriteFrom(completedBooks.map((book) => book.genre));
-  const libraryProgress = books.length ? Math.round(completedBooks.length / books.length * 100) : 0;
 
   useEffect(() => {
     async function loadProfileName() {
@@ -285,18 +268,6 @@ export function LibraryView({ greetingTemplate }: { greetingTemplate: string }) 
         </article>)}
       </div>
       {!visibleBooks.length && <div className="empty-state"><BookOpen size={25} /><p>Таких книг пока нет.</p></div>}
-      <section className="library-statistics" aria-labelledby="statistics-title">
-        <div className="statistics-heading"><div><p className="eyebrow">Твоя читательская история</p><h2 id="statistics-title">Статистика</h2></div><span>{currentDate.toLocaleString("ru-RU", { month: "long", year: "numeric" })}</span></div>
-        <div className="statistics-grid">
-          <article className="stat-card"><span className="stat-icon month"><Check size={19} /></span><p>Прочитано в этом месяце</p><strong>{completedThisMonth}</strong><small>книг завершено</small></article>
-          <article className="stat-card"><span className="stat-icon total"><BookOpen size={19} /></span><p>Прочитано всего</p><strong>{completedBooks.length}</strong><small>книг в библиотеке</small></article>
-          <article className="stat-card"><span className="stat-icon progress"><Target size={19} /></span><p>Прогресс библиотеки</p><strong>{libraryProgress}%</strong><small>{completedBooks.length} из {books.length} книг</small></article>
-          <article className="stat-card"><span className="stat-icon waiting"><Compass size={19} /></span><p>Ждут своей очереди</p><strong>{unreadBooks}</strong><small>ещё не начаты</small></article>
-          <article className="stat-card"><span className="stat-icon purchased"><BookOpen size={19} /></span><p>Куплено книг</p><strong>{purchasedBooks}</strong><small>не в списке покупок</small></article>
-          <article className="stat-card stat-card-featured"><span className="stat-icon author"><Pencil size={19} /></span><p>Любимый автор</p><strong>{favoriteAuthor}</strong><small>чаще всего прочитан</small></article>
-          <article className="stat-card stat-card-featured"><span className="stat-icon genre"><Sparkles size={19} /></span><p>Любимый жанр</p><strong>{favoriteGenre}</strong><small>лидирует по прочтениям</small></article>
-        </div>
-      </section>
     </div>
     {isOpen && <div className={isBookFlying ? "modal-backdrop is-book-flying" : "modal-backdrop"} role="presentation" onMouseDown={closeBookComposer}>
       <form ref={composerRef} className={isBookFlying ? "book-composer is-book-flying" : "book-composer"} style={flightStyle ?? undefined} onSubmit={addNewBook} onMouseDown={(event) => event.stopPropagation()}>
@@ -317,6 +288,26 @@ export function LibraryView({ greetingTemplate }: { greetingTemplate: string }) 
     {selectedBook && <BookDetailsModal book={selectedBook} onClose={() => setSelectedBook(null)} onDelete={animateBookDeletion} onEdit={() => { setSelectedBook(null); openBookEditor(selectedBook); }} onRequestRead={() => { setSelectedBook(null); setReviewingBook(selectedBook); }} onAdvanceStatus={() => { advanceStatus(selectedBook.id); setSelectedBook((current) => current ? { ...current, status: current.status === "Не читано" ? "Читаю" : current.status === "Читаю" ? "Прочитано" : "Не читано" } : null); }} />}
     {reviewingBook && <ReadReviewModal book={reviewingBook} onClose={() => setReviewingBook(null)} onComplete={(completedRating, completedReview) => { updateBook(reviewingBook.id, { status: "Прочитано", rating: completedRating, review: completedReview }); setReviewingBook(null); }} />}
   </>;
+}
+
+export function StatsView() {
+  const { books } = useLibrary();
+  const completedBooks = books.filter((book) => book.status === "Прочитано");
+  const currentDate = new Date();
+  const completedThisMonth = completedBooks.filter((book) => {
+    if (!book.completedAt) return false;
+    const completedDate = new Date(book.completedAt);
+    return completedDate.getFullYear() === currentDate.getFullYear() && completedDate.getMonth() === currentDate.getMonth();
+  }).length;
+  const unreadBooks = books.filter((book) => book.status === "Не читано").length;
+  const purchasedBooks = books.filter((book) => book.status !== "Хочу купить").length;
+  const favoriteFrom = (values: string[]) => {
+    const counts = new Map<string, number>();
+    values.forEach((value) => counts.set(value, (counts.get(value) ?? 0) + 1));
+    return [...counts.entries()].sort((first, second) => second[1] - first[1] || first[0].localeCompare(second[0], "ru"))[0]?.[0] ?? "Пока нет";
+  };
+  const libraryProgress = books.length ? Math.round(completedBooks.length / books.length * 100) : 0;
+  return <div className="page-content"><PageHeading eyebrow="Твоя читательская история" title="Статистика" action={<span className="stats-date">{currentDate.toLocaleString("ru-RU", { month: "long", year: "numeric" })}</span>} /><div className="statistics-grid"><article className="stat-card"><span className="stat-icon month"><Check size={19} /></span><p>Прочитано в этом месяце</p><strong>{completedThisMonth}</strong><small>книг завершено</small></article><article className="stat-card"><span className="stat-icon total"><BookOpen size={19} /></span><p>Прочитано всего</p><strong>{completedBooks.length}</strong><small>книг в библиотеке</small></article><article className="stat-card"><span className="stat-icon progress"><Target size={19} /></span><p>Прогресс библиотеки</p><strong>{libraryProgress}%</strong><small>{completedBooks.length} из {books.length} книг</small></article><article className="stat-card"><span className="stat-icon waiting"><Compass size={19} /></span><p>Ждут своей очереди</p><strong>{unreadBooks}</strong><small>ещё не начаты</small></article><article className="stat-card"><span className="stat-icon purchased"><BookOpen size={19} /></span><p>Куплено книг</p><strong>{purchasedBooks}</strong><small>не в списке покупок</small></article><article className="stat-card stat-card-featured"><span className="stat-icon author"><Pencil size={19} /></span><p>Любимый автор</p><strong>{favoriteFrom(completedBooks.map((book) => book.author))}</strong><small>чаще всего прочитан</small></article><article className="stat-card stat-card-featured"><span className="stat-icon genre"><Sparkles size={19} /></span><p>Любимый жанр</p><strong>{favoriteFrom(completedBooks.map((book) => book.genre))}</strong><small>лидирует по прочтениям</small></article></div></div>;
 }
 
 function CollectionBooksModal({ name, books, onClose, onSelectBook }: { name: string; books: Book[]; onClose: () => void; onSelectBook: (book: Book) => void }) {
