@@ -23,6 +23,7 @@ export function AppNavigation({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState({ name: "", email: "", about: "", preferences: "", avatarPath: "", avatarUrl: "" });
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
   const [profileError, setProfileError] = useState("");
+  const [isAuthChecked, setIsAuthChecked] = useState(false);
 
   useEffect(() => {
     if (!isProfileOpen) return;
@@ -62,6 +63,16 @@ export function AppNavigation({ children }: { children: React.ReactNode }) {
     return () => { document.removeEventListener("mousedown", closeProfileWithAnimation, true); document.removeEventListener("click", closeProfileWithAnimation, true); };
   }, [isProfileOpen]);
 
+  useEffect(() => {
+    async function checkAuth() {
+      if (window.location.pathname === "/login") { setIsAuthChecked(true); return; }
+      const { data: { user } } = await createSupabaseBrowserClient().auth.getUser();
+      if (!user) window.location.assign("/login");
+      else setIsAuthChecked(true);
+    }
+    void checkAuth();
+  }, []);
+
   async function uploadAvatar(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -91,5 +102,6 @@ export function AppNavigation({ children }: { children: React.ReactNode }) {
   async function signOut() { const supabase = createSupabaseBrowserClient(); await supabase.auth.signOut(); setIsProfileOpen(false); window.location.assign("/login"); }
   const initials = profile.name.trim().slice(0, 1).toUpperCase() || "Я";
   if (pathname === "/login") return <>{children}</>;
+  if (!isAuthChecked) return null;
   return <LibraryProvider><main className="app-shell"><header className="topbar"><Link className="brand" href="/"><span className="brand-mark"><BookOpen size={20} strokeWidth={2.2} /></span><span>ЧитАль</span></Link><button className="avatar" onClick={() => setIsProfileOpen(true)} aria-label="Открыть профиль">{profile.avatarUrl ? <Image src={profile.avatarUrl} alt="" width={36} height={36} unoptimized /> : initials}</button></header><nav className="primary-nav" aria-label="Основная навигация">{links.map(({ href, label, icon: Icon }) => <Link key={href} className={pathname === href ? "nav-item active" : "nav-item"} href={href}><Icon size={20} /><span>{label}</span></Link>)}</nav><ViewTransition enter="page-enter" exit="page-exit"><div className="route-content">{children}</div></ViewTransition></main>{isProfileOpen && <div className="modal-backdrop" role="presentation" onMouseDown={() => setIsProfileOpen(false)}><section className="profile-modal" role="dialog" aria-modal="true" aria-labelledby="profile-title" onMouseDown={(event) => event.stopPropagation()}><button type="button" className="icon-button profile-close" onClick={() => setIsProfileOpen(false)} aria-label="Закрыть"><X size={20} /></button>{isLoadingProfile ? <p className="profile-loading">Загружаем профиль...</p> : isEditing ? <form onSubmit={saveProfile}><div className="profile-heading"><p className="eyebrow">Твои данные</p><h2 id="profile-title">Редактировать профиль</h2></div><label className="profile-avatar-editor">{profile.avatarUrl ? <Image src={profile.avatarUrl} alt="Аватар" width={76} height={76} unoptimized /> : <span>{initials}</span>}<input type="file" accept="image/png,image/jpeg,image/webp" onChange={uploadAvatar} /><small>Изменить аватар</small></label><label>Имя<input value={profile.name} onChange={(event) => setProfile((current) => ({ ...current, name: event.target.value }))} required /></label><label>О себе<textarea value={profile.about} onChange={(event) => setProfile((current) => ({ ...current, about: event.target.value }))} maxLength={500} /></label><label>Мои предпочтения в книгах<textarea value={profile.preferences} onChange={(event) => setProfile((current) => ({ ...current, preferences: event.target.value }))} maxLength={500} /></label>{profileError && <p className="profile-error" role="alert">{profileError}</p>}<button className="submit-button" type="submit">Сохранить изменения</button></form> : <><div className="profile-summary"><div className="profile-avatar">{profile.avatarUrl ? <Image src={profile.avatarUrl} alt="Аватар" width={76} height={76} unoptimized /> : initials}</div><div><p className="eyebrow">Твой профиль</p><h2 id="profile-title">{profile.name || "Добавь имя"}</h2><p>{profile.email}</p></div></div><div className="profile-data"><strong>О себе</strong><p>{profile.about || "Добавь несколько слов о себе."}</p><strong>Мои предпочтения в книгах</strong><p>{profile.preferences || "Расскажи, что тебе нравится читать."}</p></div>{profileError && <p className="profile-error" role="alert">{profileError}</p>}<button type="button" className="profile-edit" onClick={() => setIsEditing(true)}><Pencil size={17} /> Редактировать</button><button type="button" className="profile-signout" onClick={signOut}><LogOut size={17} /> Выйти</button></>}</section></div>}</LibraryProvider>;
 }

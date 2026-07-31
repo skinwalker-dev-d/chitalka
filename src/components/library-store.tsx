@@ -100,7 +100,7 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
         if (!isActive) return;
         const storedBooks = (data as StoredBook[]).map(fromStoredBook);
         setBooks(storedBooks);
-        setCollections(readStored<LibraryCollection>(collectionsKey) ?? collectNames(storedBooks));
+        setCollections(collectNames(storedBooks));
         const storedGoals = readStored<unknown>(goalsKey);
         setGoals(storedGoals ? migrateGoals(storedGoals, storedBooks) : initialGoals);
       } catch {
