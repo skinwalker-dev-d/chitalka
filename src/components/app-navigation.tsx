@@ -23,6 +23,11 @@ export function AppNavigation({ children }: { children: React.ReactNode }) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const swipeRef = useRef<{ x: number; y: number } | null>(null);
   const { theme, setTheme } = useTheme();
+  // Propagate theme to body so CSS can target it outside any stacking context
+  useEffect(() => {
+    document.body.classList.toggle("theme-autumn", theme === "autumn");
+    return () => document.body.classList.remove("theme-autumn");
+  }, [theme]);
   const pageRoutes = links.map((link) => link.href);
   const [isEditing, setIsEditing] = useState(false);
   const [profile, setProfile] = useState({ name: "", email: "", about: "", preferences: "", avatarPath: "", avatarUrl: "" });

@@ -71,7 +71,7 @@ button, input, select, textarea { font: inherit; } button { cursor: pointer; } a
 @media (prefers-reduced-motion: reduce) { .autumn-leaf, .autumn-pumpkin, .autumn-coffee { animation: none !important; } }
 
 .theme-autumn { --green: #9b4f1a; --coral: #c94a0c; --ink: #2c1a0e; --muted: #8a6045; --paper: #fdf5e8; --line: #e0c9a6; }
-.theme-autumn .app-shell { background-image: url("/autumn-background-vector.jpg"), linear-gradient(115deg, #fdf5e6, #faebd7 49%, #f5deb3); background-repeat: repeat, no-repeat; background-size: 400px auto, cover; background-position: center top, center; }
+body.theme-autumn { background-image: url("/autumn-background-vector.jpg"); background-repeat: repeat; background-size: 400px auto; }.theme-autumn .app-shell { background: linear-gradient(115deg, rgba(253,245,230,0.82), rgba(250,235,215,0.82) 49%, rgba(245,222,179,0.82)); }
 .theme-autumn .primary-nav { background: #eddcb5; }
 .theme-autumn .brand-mark { background: #c85c15; }
 .theme-autumn .nav-item.active { background: #fdf5e6; color: var(--ink); }
