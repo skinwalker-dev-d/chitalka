@@ -105,7 +105,7 @@ function CollectionBookEditor({ book, onClose }: { book: Book; onClose: () => vo
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
-    if (!file.type.startsWith("image/") || file.size > 2 * 1024 * 1024) { setCoverError("Размер обложки не должен превышать 2 МБ."); return; }
+    if (!file.type.startsWith("image/") || file.size > 6 * 1024 * 1024) { setCoverError("Размер обложки не должен превышать 6 МБ."); return; }
     const reader = new FileReader();
     reader.onload = () => { setCoverImage(typeof reader.result === "string" ? reader.result : null); setCoverError(""); };
     reader.readAsDataURL(file);
@@ -274,7 +274,7 @@ export function LibraryView({ greetingTemplate }: { greetingTemplate: string }) 
     event.target.value = "";
     if (!file) return;
     if (!file.type.startsWith("image/")) { setCoverError("Выбери файл изображения."); return; }
-    if (file.size > 2 * 1024 * 1024) { setCoverError("Размер обложки не должен превышать 2 МБ."); return; }
+    if (file.size > 6 * 1024 * 1024) { setCoverError("Размер обложки не должен превышать 6 МБ."); return; }
     const reader = new FileReader();
     reader.onload = () => { setCoverImage(typeof reader.result === "string" ? reader.result : null); setCoverError(""); };
     reader.readAsDataURL(file);
