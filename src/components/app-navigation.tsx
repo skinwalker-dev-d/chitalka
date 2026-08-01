@@ -71,9 +71,19 @@ export function AppNavigation({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     async function checkAuth() {
       if (window.location.pathname === "/login") { setIsAuthChecked(true); return; }
-      const { data: { user } } = await createSupabaseBrowserClient().auth.getUser();
-      if (!user) window.location.assign("/login");
-      else setIsAuthChecked(true);
+      const supabase = createSupabaseBrowserClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { window.location.assign("/login"); return; }
+      setIsAuthChecked(true);
+      // Load name + avatar for the topbar without waiting for the profile modal
+      const { data } = await supabase.from("profiles").select("display_name, avatar_url").eq("id", user.id).maybeSingle();
+      const avatarPath = data?.avatar_url || "";
+      const displayName = data?.display_name || String(user.user_metadata?.display_name || "");
+      setProfile((prev) => ({ ...prev, name: displayName, avatarPath }));
+      if (avatarPath) {
+        const { data: signed } = await supabase.storage.from("avatars").createSignedUrl(avatarPath, 60 * 60);
+        if (signed?.signedUrl) setProfile((prev) => ({ ...prev, avatarUrl: signed.signedUrl }));
+      }
     }
     void checkAuth();
   }, []);
