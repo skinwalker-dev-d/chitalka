@@ -124,15 +124,24 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
         if (isActive) setGoals((goalsData ?? []).map(fromStoredGoal));
         if (isActive) setGenres((genresData ?? []).map((g: { name: string }) => g.name));
         if (isActive) setShelves((shelvesData ?? []).map((s) => fromStoredShelf(s as StoredShelf)));
-        // Load cover images in the background so the book grid is visible immediately
+        // Load cover images in small batches to avoid statement timeout on large libraries
         if (isActive && storedBooks.length > 0) {
-          void supabase.from("books").select("id, cover_image").then(({ data: covers }) => {
-            if (!isActive || !covers) return;
-            setBooks((current) => current.map((book) => {
-              const c = (covers as { id: number; cover_image: string | null }[]).find((r) => r.id === book.id);
-              return c?.cover_image ? { ...book, coverImage: c.cover_image } : book;
-            }));
-          });
+          const BATCH = 5;
+          const ids = storedBooks.filter((b) => b.coverImage === undefined).map((b) => b.id);
+          const loadBatch = async (offset: number) => {
+            if (!isActive || offset >= ids.length) return;
+            const batch = ids.slice(offset, offset + BATCH);
+            const { data: covers, error } = await supabase.from("books").select("id, cover_image").in("id", batch);
+            if (!isActive) return;
+            if (!error && covers) {
+              setBooks((current) => current.map((book) => {
+                const c = (covers as { id: number; cover_image: string | null }[]).find((r) => r.id === book.id);
+                return c?.cover_image ? { ...book, coverImage: c.cover_image } : book;
+              }));
+            }
+            window.setTimeout(() => void loadBatch(offset + BATCH), 300);
+          };
+          void loadBatch(0);
         }
       } catch {
         if (!isActive) return;
