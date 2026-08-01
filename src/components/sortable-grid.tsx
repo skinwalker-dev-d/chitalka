@@ -134,7 +134,7 @@ export function SortableGrid<T extends { id: string }>({
       <SortableContext items={items.map((i) => i.id)} strategy={rectSortingStrategy}>
         <div
           className={`${className ?? "collection-page-grid"}${pressing ? " grid-long-pressing" : ""}${isEditMode ? " grid-is-editing" : ""}`}
-          style={isEditMode ? { touchAction: "none", ...containerStyle } : containerStyle}
+          style={isEditMode ? { touchAction: "pan-y", ...containerStyle } : containerStyle}
           onPointerDown={!isEditMode ? lpStart : undefined}
           onPointerUp={!isEditMode ? lpCancel : undefined}
           onPointerCancel={!isEditMode ? lpCancel : undefined}
