@@ -18,7 +18,7 @@ import {
   X,
 } from "lucide-react";
 import Image from "next/image";
-import { ChangeEvent, FormEvent, useDeferredValue, useEffect, useRef, useState } from "react";
+import { ChangeEvent, FormEvent, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { Book, BookStatus, getGoalProgress, LibraryCollection, ReadingGoal, Shelf, useLibrary } from "@/components/library-store";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { SortableGrid, SortableItem, useLongPress } from "@/components/sortable-grid";
@@ -178,10 +178,11 @@ export function LibraryView({ greetingTemplate }: { greetingTemplate: string }) 
   const bookGridRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLFormElement>(null);
   const deferredQuery = useDeferredValue(query.trim().toLowerCase());
-  const visibleBooks = books
+  const visibleBooks = useMemo(() => books
     .filter((book) => (book.status === "Хочу купить" ? filter === "Хочу купить" : filter === "Все" || book.status === filter) && (!deferredQuery || `${book.title} ${book.author} ${book.genre}`.toLowerCase().includes(deferredQuery)))
-    .sort((a, b) => filter === "Прочитано" ? (b.completedAt ?? "").localeCompare(a.completedAt ?? "") : 0);
-  const monthGroups = filter === "Прочитано" ? (() => {
+    .sort((a, b) => filter === "Прочитано" ? (b.completedAt ?? "").localeCompare(a.completedAt ?? "") : 0),
+  [books, filter, deferredQuery]);
+  const monthGroups = useMemo(() => filter !== "Прочитано" ? [] : (() => {
     const groups = new Map<string, { label: string; sort: string; books: typeof visibleBooks }>();
     for (const book of visibleBooks) {
       const sort = book.completedAt ? book.completedAt.slice(0, 7) : "0000-00";
@@ -190,11 +191,11 @@ export function LibraryView({ greetingTemplate }: { greetingTemplate: string }) 
       groups.get(sort)!.books.push(book);
     }
     return [...groups.values()].sort((a, b) => b.sort.localeCompare(a.sort));
-  })() : [];
-  const collectionNames = collections.map((collection) => collection.name).sort((first, second) => first.localeCompare(second, "ru"));
-  const genreOptions = [...new Set(["Без жанра", ...genres, ...books.map((book) => book.genre).filter(Boolean)])].sort((a, b) => a === "Без жанра" ? -1 : b === "Без жанра" ? 1 : a.localeCompare(b, "ru"));
-  const bookGenreNames = books.map((book) => book.genre).filter(Boolean);
-  const allGenres = [...new Set([...genres, ...bookGenreNames.filter((n) => !genres.includes(n))])].map((name) => ({ name, count: books.filter((book) => book.genre === name).length }));
+  })(), [visibleBooks, filter]);
+  const collectionNames = useMemo(() => collections.map((collection) => collection.name).sort((first, second) => first.localeCompare(second, "ru")), [collections]);
+  const genreOptions = useMemo(() => [...new Set(["Без жанра", ...genres, ...books.map((book) => book.genre).filter(Boolean)])].sort((a, b) => a === "Без жанра" ? -1 : b === "Без жанра" ? 1 : a.localeCompare(b, "ru")), [genres, books]);
+  const bookGenreNames = useMemo(() => books.map((book) => book.genre).filter(Boolean), [books]);
+  const allGenres = useMemo(() => [...new Set([...genres, ...bookGenreNames.filter((n) => !genres.includes(n))])].map((name) => ({ name, count: books.filter((book) => book.genre === name).length })), [genres, books, bookGenreNames]);
 
   useEffect(() => {
     async function loadProfileName() {
