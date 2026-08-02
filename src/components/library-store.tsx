@@ -283,7 +283,7 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
     const sb = createSupabaseBrowserClient();
     void sb.auth.getUser().then(({ data: { user } }) => {
       if (!user) return;
-      void sb.from("shelves").insert({ collection_id: collectionId, name, book_ids: bookIds, user_id: user.id, position: shelves.length }).select("id, collection_id, name, book_ids").single().then(({ data, error }) => {
+      void sb.from("shelves").insert({ collection_id: collectionId, name, book_ids: bookIds, user_id: user.id }).select("id, collection_id, name, book_ids").single().then(({ data, error }) => {
         if (error) { console.error("[addShelf] failed:", error); setShelves((current) => current.filter((s) => s.id !== pendingId)); return; }
         if (data) setShelves((current) => current.map((s) => s.id === pendingId ? fromStoredShelf(data as StoredShelf) : s));
       });
