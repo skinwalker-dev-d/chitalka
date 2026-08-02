@@ -18,7 +18,7 @@ import {
   X,
 } from "lucide-react";
 import Image from "next/image";
-import { ChangeEvent, FormEvent, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Book, BookStatus, getGoalProgress, LibraryCollection, ReadingGoal, Shelf, useLibrary } from "@/components/library-store";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { SortableGrid, SortableItem, useLongPress } from "@/components/sortable-grid";
@@ -126,7 +126,13 @@ export function LibraryView({ greetingTemplate }: { greetingTemplate: string }) 
   const { start: genreLpStart, cancel: genreLpCancel, pressing: genreLpPressing } = useLongPress(() => setIsGenreReorderMode(true));
   const [profileName, setProfileName] = useState("");
   const [filter, setFilter] = useState<BookStatus | "Все">("Все");
-  const [query, setQuery] = useState("");
+  const [inputValue, setInputValue] = useState("");
+  const [filterQuery, setFilterQuery] = useState("");
+  useEffect(() => {
+    const id = window.setTimeout(() => setFilterQuery(inputValue.trim().toLowerCase()), 280);
+    return () => window.clearTimeout(id);
+  }, [inputValue]);
+  const query = filterQuery;
   const [isOpen, setIsOpen] = useState(false);
   const [editingBook, setEditingBook] = useState<Book | null>(null);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
@@ -177,7 +183,7 @@ export function LibraryView({ greetingTemplate }: { greetingTemplate: string }) 
   const actionMenuRef = useRef<HTMLDivElement>(null);
   const bookGridRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLFormElement>(null);
-  const deferredQuery = useDeferredValue(query.trim().toLowerCase());
+  const deferredQuery = filterQuery;
   const visibleBooks = useMemo(() => books
     .filter((book) => (book.status === "Хочу купить" ? filter === "Хочу купить" : filter === "Все" || book.status === filter) && (!deferredQuery || `${book.title} ${book.author} ${book.genre}`.toLowerCase().includes(deferredQuery)))
     .sort((a, b) => filter === "Прочитано" ? (b.completedAt ?? "").localeCompare(a.completedAt ?? "") : 0),
@@ -299,7 +305,7 @@ export function LibraryView({ greetingTemplate }: { greetingTemplate: string }) 
     <div className="page-content">
       <p className="home-greeting">{greeting}</p>
       <PageHeading eyebrow="Ходунячья библиотека ❤️" title="Книжная полочка" action={<button className="add-button" onClick={openNewBookComposer}><CirclePlus size={19} /><span>Добавить</span></button>} />
-      <label className="search-field"><Search size={19} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Поиск по библиотеке" /></label>
+      <label className="search-field"><Search size={19} /><input value={inputValue} onChange={(event) => setInputValue(event.target.value)} placeholder="Поиск по библиотеке" /></label>
       <div className="filter-row" aria-label="Фильтр по статусу">{filters.map((item) => <button key={item} onClick={() => { setFilter(item); setIsGenreBrowserOpen(false); }} className={(!isGenreBrowserOpen && !browsedGenre && filter === item) ? "filter active" : "filter"}>{item}</button>)}<button className={`filter${(isGenreBrowserOpen || browsedGenre) ? " active" : ""}`} onClick={() => setIsGenreBrowserOpen((v) => !v)}>Жанры</button></div>
       {isGenreBrowserOpen ? <><div className="section-heading" style={{ marginTop: "20px" }}><h2>Жанры</h2><button type="button" className="add-button" onClick={() => setIsAddingGenre(true)}><CirclePlus size={19} /><span>Добавить</span></button></div><><div className={`grid-edit-bar${isGenreReorderMode ? " grid-edit-bar--visible" : ""}`}><span>Удерживай и перетаскивай для сортировки</span><button type="button" className="grid-done-btn" onClick={() => setIsGenreReorderMode(false)}>Готово</button></div><SortableGrid items={allGenres.map(g => ({ ...g, id: g.name }))} onReorder={(newItems) => reorderGenres(newItems.map(g => g.name))} isEditMode={isGenreReorderMode} onEnterEditMode={() => setIsGenreReorderMode(true)} containerStyle={{ marginTop: "12px" }} renderItem={({ name, count }) => <article className="collection-tile"><button type="button" className="collection-tile-main" onClick={() => setBrowsedGenre(name)}><span><Sparkles size={20} /></span><strong>{name}</strong><small>{count} {count === 1 ? "книга" : "книг"}</small></button><div className="collection-actions"><button type="button" className="collection-menu-trigger" onClick={(e) => { const b = e.currentTarget.getBoundingClientRect(); setGenreMenuUp(window.innerHeight - b.bottom < 120); setGenreMenuId((v) => v === name ? null : name); }} aria-label={`Действия с жанром ${name}`} aria-expanded={genreMenuId === name}><MoreHorizontal size={18} /></button>{genreMenuId === name && <div className={genreMenuUp ? "book-action-menu opens-up" : "book-action-menu"} role="menu"><button role="menuitem" onClick={() => { setEditingGenre(name); setEditingGenreName(name); setEditingGenreBookIds(books.filter((b) => b.genre === name).map((b) => b.id)); setGenreMenuId(null); }}><Pencil size={15} /> Редактировать</button><button className="collection-delete-option" role="menuitem" onClick={() => { setGenrePendingDelete(name); setGenreMenuId(null); }}><Trash2 size={15} /> Удалить жанр</button></div>}</div></article>} />{!allGenres.length && <div className="empty-state" style={{ gridColumn: "1 / -1" }}><Sparkles size={25} /><p>Жанры пока не заданы.</p></div>}</></> : <><div className="book-grid" ref={bookGridRef}>
         {(filter === "Прочитано" ? monthGroups.flatMap(({ label, sort, books: gb }): React.ReactElement[] => [<h3 key={`hdr-${sort}`} className="month-group-header">{label}</h3>, ...gb.map(renderBook)]) : visibleBooks.map(renderBook))}
